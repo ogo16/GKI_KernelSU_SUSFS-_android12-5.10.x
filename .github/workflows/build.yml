@@ -173,37 +173,6 @@ jobs:
         echo "file_name=$FILE_NAME" >> $GITHUB_OUTPUT
         echo "sublevel=$SUBLEVEL" >> $GITHUB_OUTPUT
 
-    - name: Apply glibc 2.38 Compatibility Fix
-      if: true
-      run: |
-        # Use SUBLEVEL for LTS builds, otherwise use the input sub_level
-        if [[ "$ANDROID_VERSION" == "android13" && "$KERNEL_VERSION" == "5.10" && $SUBLEVEL -le 186 ]] || 
-           [[ "$ANDROID_VERSION" == "android13" && "$KERNEL_VERSION" == "5.15" && $SUBLEVEL -le 119 ]] || 
-           [[ "$ANDROID_VERSION" == "android14" && "$KERNEL_VERSION" == "5.15" && $SUBLEVEL -le 110 ]] || 
-           [[ "$ANDROID_VERSION" == "android14" && "$KERNEL_VERSION" == "6.1" && $SUBLEVEL -le 43 ]]; then
-          GLIBC_VERSION=$(ldd --version 2>/dev/null | head -n 1 | awk '{print $NF}') 
-          if [ "$(printf '%s\n' "2.38" "$GLIBC_VERSION" | sort -V | head -n1)" = "2.38" ]; then 
-            cd "$GITHUB_WORKSPACE/kernel/common"
-            sed -i '/\$(Q)\$(MAKE) -C \$(SUBCMD_SRC) OUTPUT=\$(abspath \$(dir \$@))\/ \$(abspath \$@)/s//$(Q)$(MAKE) -C $(SUBCMD_SRC) EXTRA_CFLAGS="$(CFLAGS)" OUTPUT=$(abspath $(dir $@))\/ $(abspath $@)/' tools/bpf/resolve_btfids/Makefile 2>/dev/null || true
-            if [[ "$ANDROID_VERSION" == "android13" && "$KERNEL_VERSION" == "5.10" && $SUBLEVEL -le 186 ]] || 
-               [[ "$ANDROID_VERSION" == "android13" && "$KERNEL_VERSION" == "5.15" && $SUBLEVEL -le 119 ]] || 
-               [[ "$ANDROID_VERSION" == "android14" && "$KERNEL_VERSION" == "5.15" && $SUBLEVEL -le 110 ]]; then
-              sed -i '/char \*buf = NULL;/a int i;' tools/lib/subcmd/parse-options.c 2>/dev/null || true
-              sed -i 's/for (int i = 0; subcommands\[i\]; i++) {/for (i = 0; subcommands[i]; i++) {/' tools/lib/subcmd/parse-options.c 2>/dev/null || true
-              sed -i '/if (subcommands) {/a int i;' tools/lib/subcmd/parse-options.c 2>/dev/null || true
-              sed -i 's/for (int i = 0; subcommands\[i\]; i++)/for (i = 0; subcommands[i]; i++)/' tools/lib/subcmd/parse-options.c 2>/dev/null || true
-            fi
-          fi
-        fi 
-
-    - name: Fix Less Than 6.6.50 Builds
-      if: ${{ steps.parse.outputs.android_version == 'android15' && steps.parse.outputs.kernel_version == '6.6'}}
-      working-directory: ${{ github.workspace }}/kernel/common
-      run: |
-        if ! grep -qxF '#include <trace/hooks/fs.h>' ./fs/namespace.c; then
-            sed -i '/#include <trace\/hooks\/blk.h>/a #include <trace\/hooks\/fs.h>' ./fs/namespace.c
-        fi
-
     - name: Setup KernelSU-Next
       if: contains(inputs.feature_set, 'KSUN')
       uses: ./.github/actions/kernelsu
@@ -229,10 +198,6 @@ jobs:
         os_patch_level: ${{ steps.parse.outputs.os_patch_level }}
         sublevel: ${{ steps.extract.outputs.sublevel }}
 
-    - name: Setup Baseband Guard
-      if: contains(inputs.feature_set, 'BBG')
-      uses: ./.github/actions/bbg
-
     - name: Apply Module Check Bypass
       if: ${{ matrix.variant == 'Bypass' }}
       run: |
@@ -252,17 +217,6 @@ jobs:
           grep -A 5 "bad_version:" "$TARGET_FILE" || true
           exit 1
         fi
-
-    - name: Apply Device-Specific Patches
-      uses: ./.github/actions/apply-device-patches
-      with:
-        kernel_version: ${{ steps.parse.outputs.kernel_version }}
-
-    - name: Setup Networking options
-      uses: ./.github/actions/networking
-      with:
-        kernel_version: ${{ steps.parse.outputs.kernel_version }}
-        android_version: ${{ steps.parse.outputs.android_version }}
 
     - name: Apply ABI Compare Bypass
       if: false
