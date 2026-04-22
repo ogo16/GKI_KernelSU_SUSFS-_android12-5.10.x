@@ -112,6 +112,7 @@ runs:
       working-directory: ${{ github.workspace }}/kernel/common
       run: |
         SUPERCALL="drivers/kernelsu/supercall/supercall.c"
+        ls -aR
           if [ -f "$SUPERCALL" ]; then
             if ! grep -q '#include <linux/syscalls.h>' "$SUPERCALL"; then
               sed -i '/#include <linux\/fs.h>/a #include <linux/syscalls.h>' "$SUPERCALL"
