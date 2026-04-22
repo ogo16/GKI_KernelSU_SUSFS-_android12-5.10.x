@@ -106,3 +106,22 @@ runs:
       run: |
         cp ${{ github.workspace }}/kernel_patches/wild/ksun-0daf55582-susfs-v2.1.0-e259e7d6.patch ./
         patch -p1 < ksun-0daf55582-susfs-v2.1.0-e259e7d6.patch
+
+    - name: fix lack of syscall includes
+      shell: bash
+      working-directory: ${{ github.workspace }}/kernel/common
+      run: |
+        SUPERCALL=$(find . -type f -path "*/common/drivers/kernelsu/supercall/supercall.c" | head -n 1)
+        ls -aR
+        if [ -n "$SUPERCALL" ]; then
+          if ! grep -q '#include <linux/syscalls.h>' "$SUPERCALL"; then
+            sed -i '/#include <linux\/fs.h>/a #include <linux/syscalls.h>' "$SUPERCALL"
+            echo "Added syscalls.h include to $SUPERCALL"
+          else
+            echo "syscalls.h already present"
+          fi
+        else
+          echo "supercall.c not found"
+          exit 1
+        fi
+
