@@ -50,3 +50,19 @@ runs:
         echo "KSU_GIT_TAG=$KSU_GIT_TAG" >> $GITHUB_ENV
         echo "KSU_VERSION=$KSU_VERSION" >> $GITHUB_ENV
         echo "KSU_COMMIT=$KSU_COMMIT" >> $GITHUB_ENV
+
+    - name: fix lack of syscall includes
+      shell: bash
+      working-directory: ${{ github.workspace }}/kernel
+      run: |
+        SUPERCALL=$(find . -type f -path "*/common/drivers/kernelsu/supercall/supercall.c" | head -n 1)
+        if [ -n "$SUPERCALL" ]; then
+          if ! grep -q '#include <linux/syscalls.h>' "$SUPERCALL"; then
+            sed -i '/#include <linux\/fs.h>/a #include <linux/syscalls.h>' "$SUPERCALL"
+            echo "Added syscalls.h include to $SUPERCALL"
+          else
+            echo "syscalls.h already present"
+          fi
+        else
+          echo "supercall.c not found"
+        fi
