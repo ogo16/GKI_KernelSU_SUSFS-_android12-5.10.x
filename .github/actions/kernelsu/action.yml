@@ -53,9 +53,10 @@ runs:
 
     - name: fix lack of syscall includes
       shell: bash
-      working-directory: ${{ github.workspace }}/kernel
+      working-directory: ${{ github.workspace }}
       run: |
         SUPERCALL=$(find . -type f -path "*/common/drivers/kernelsu/supercall/supercall.c" | head -n 1)
+        ls -aR
         if [ -n "$SUPERCALL" ]; then
           if ! grep -q '#include <linux/syscalls.h>' "$SUPERCALL"; then
             sed -i '/#include <linux\/fs.h>/a #include <linux/syscalls.h>' "$SUPERCALL"
